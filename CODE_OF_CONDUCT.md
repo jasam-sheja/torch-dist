@@ -1,4 +1,4 @@
-# pyfoobar Code of Conduct
+# torch-dist Code of Conduct
 
 ## Our Pledge
 

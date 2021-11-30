@@ -1,8 +1,8 @@
-# pyfoobar contributing guidelines
+# torch-dist contributing guidelines
 
-The pyfoobar community appreciates your contributions via issues and
+The torch-dist community appreciates your contributions via issues and
 pull requests.  Note that the [code of conduct](CODE_OF_CONDUCT.md)
-applies to all interactions with the pyfoobar project, including
+applies to all interactions with the torch-dist project, including
 issues and pull requests.
 
 When submitting pull requests, please follow the style guidelines of
