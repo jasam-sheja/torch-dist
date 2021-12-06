@@ -66,3 +66,57 @@ class TestCDist:
         assert torch.autograd.gradcheck(optmem, (a, b), raise_exception=False)
         assert torch.autograd.gradcheck(
             optcompute, (a, b), raise_exception=False)
+
+class TestCDistSquare:
+    @pytest.mark.parametrize(
+        "device", ['cpu'] + (['cuda'] if torch.cuda.is_available() else []),
+    )
+    @pytest.mark.parametrize("B", [1, 256],)
+    @pytest.mark.parametrize("P", [1, 2, 3, 256],)
+    @pytest.mark.parametrize("R", [1, 2, 3, 256],)
+    @pytest.mark.parametrize("M", [1, 2, 3, 25, 256, 1000],)
+    @pytest.mark.parametrize("scale", [0.1, 1, 10],)
+    def test_inference(self, device, B, P, R, M, scale):
+        a = torch.rand((B, P, M), device=device,
+                       dtype=torch.float64, requires_grad=False) * scale
+        b = torch.rand((B, R, M), device=device,
+                       dtype=torch.float64, requires_grad=False) * scale
+
+        gt = torch.cdist(a, b, compute_mode='use_mm_for_euclid_dist')**2
+        d = torch_dist.euclidean.cdist_square(a, b)
+        assert torch.allclose(
+            gt, d, atol=1e-5), f"failed inference with diff {(gt-d).abs().max().item()}"
+
+    @pytest.mark.parametrize(
+        "device", ['cpu'] + (['cuda'] if torch.cuda.is_available() else []),
+    )
+    @pytest.mark.parametrize("size", [(1, 2000, 5)],)
+    def test_large_input(self, device, size):
+        x = torch.randn(size, device=device, dtype=torch.float)
+        y = torch.randn(size, device=device, dtype=torch.float)
+        eps = 1e-6
+        # to avoid extremum
+        x = x - (((x - y) < eps).float() * 2 * eps)
+        x.requires_grad = True
+        y.requires_grad = True
+        dist = torch_dist.euclidean.cdist_square(x, y)
+        # Do a backward pass to check that it is valid for large
+        # matrices
+        loss = dist.sum()
+        loss.backward()
+
+    @pytest.mark.parametrize(
+        "device", ['cpu'] + (['cuda'] if torch.cuda.is_available() else []),
+    )
+    @pytest.mark.parametrize("B", [1, 8],)
+    @pytest.mark.parametrize("P", [1, 8],)
+    @pytest.mark.parametrize("R", [1, 8],)
+    @pytest.mark.parametrize("M", [1, 2, 32],)
+    @pytest.mark.parametrize("scale", [0.1, 1, 10],)
+    def test_grad(self, device, B, P, R, M, scale):
+        a = torch.rand((B, P, M), device=device,
+                       dtype=torch.float64, requires_grad=True) * scale
+        b = torch.rand((B, R, M), device=device,
+                       dtype=torch.float64, requires_grad=True) * scale
+        assert torch.autograd.gradcheck(
+            torch_dist.euclidean.cdist_square, (a, b), raise_exception=False)

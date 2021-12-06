@@ -165,23 +165,77 @@ at::Tensor eff_pdist_mem_backward(const at::Tensor &grad, const at::Tensor &x)
     return x.mul(ratio.sum(-1, true)).baddbmm_(ratio, x, 1, -1).mul_(2);
 }
 
+
+/////////////////////////////////////////////
+/////////        cdistsquare        /////////
+/////////////////////////////////////////////
+at::Tensor eff_cdistsquare_forward(const at::Tensor &x1, const at::Tensor &x2)
+{
+    at::Tensor x1_norm = x1.pow(2).sum(-1, true);
+    at::Tensor x2_norm = x2.pow(2).sum(-1, true);
+    at::Tensor sq_dist = at::baddbmm(
+                             x2_norm.transpose(-2, -1),
+                             x1,
+                             x2.transpose(-2, -1),
+                             1, -2)
+                             .add_(x1_norm);
+    return at::relu_(sq_dist);
+}
+
+std::tuple<at::Tensor, at::Tensor> eff_cdistsquare_backward(const at::Tensor &grad, const at::Tensor &x1, const at::Tensor &x2)
+{
+    if (!grad.defined())
+    {
+        return std::tuple<at::Tensor, at::Tensor>(at::Tensor(), at::Tensor());
+    }
+    return std::tuple<at::Tensor, at::Tensor>{
+        x1.mul(grad.sum(-1, true)).baddbmm_(grad, x2, 1, -1).mul_(2),
+        x2.mul(grad.sum(-2, false).unsqueeze(-1)).baddbmm_(grad.transpose(-2, -1), x1, 1, -1).mul_(2)};
+}
+at::Tensor eff_cdistsquare_x1_backward(const at::Tensor &grad, const at::Tensor &x1, const at::Tensor &x2)
+{
+    if (!grad.defined())
+    {
+        return at::Tensor();
+    }
+    return x1.mul(grad.sum(-1, true)).baddbmm_(grad, x2, 1, -1).mul_(2);
+}
+at::Tensor eff_cdistsquare_x2_backward(const at::Tensor &grad, const at::Tensor &x1, const at::Tensor &x2)
+{
+    if (!grad.defined())
+    {
+        return at::Tensor();
+    }
+    return x2.mul(grad.sum(-2, false).unsqueeze(-1)).baddbmm_(grad.transpose(-2, -1), x1, 1, -1).mul_(2);
+}
+
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     m.doc() = "C++ torch-dist";
 
     py::module euclidean = m.def_submodule("euclidean", "Euclidean distances module");
     euclidean.def("torch_cdist_org_forward", &torch_cdist_org_forward, "doc");
+
     euclidean.def("eff_cdist_forward", &eff_cdist_forward, "doc");
     euclidean.def("eff_cdist_backward", &eff_cdist_backward, "doc");
     euclidean.def("eff_cdist_x1_backward", &eff_cdist_x1_backward, "doc");
     euclidean.def("eff_cdist_x2_backward", &eff_cdist_x2_backward, "doc");
+
     euclidean.def("eff2_cdist_forward", &eff2_cdist_forward, "doc");
+
     euclidean.def("eff_cdist_mem_backward", &eff_cdist_mem_backward, "doc");
     euclidean.def("eff_cdist_x1_mem_backward", &eff_cdist_x1_mem_backward, "doc");
     euclidean.def("eff_cdist_x2_mem_backward", &eff_cdist_x2_mem_backward, "doc");
+    
     euclidean.def("eff_pdist_forward", &eff_pdist_forward, "doc");
     euclidean.def("eff_pdist_backward", &eff_pdist_backward, "doc");
     euclidean.def("eff_pdist_mem_backward", &eff_pdist_mem_backward, "doc");
+    
+    euclidean.def("eff_cdistsquare_forward", &eff_cdistsquare_forward, "doc");
+    euclidean.def("eff_cdistsquare_backward", &eff_cdistsquare_backward, "doc");
+    euclidean.def("eff_cdistsquare_x1_backward", &eff_cdistsquare_x1_backward, "doc");
+    euclidean.def("eff_cdistsquare_x2_backward", &eff_cdistsquare_x2_backward, "doc");
 }
 
 #endif
