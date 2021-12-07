@@ -66,6 +66,42 @@ class CdistFunction_optmem(Function):
         return grad_x1, grad_x2
 
 
+class PdistFunction_optcompute(Function):
+    @staticmethod
+    def forward(ctx, x: torch.Tensor) -> torch.Tensor:
+        res = module.eff_pdist_forward(x)
+        ctx.save_for_backward(x, res)
+        return res
+
+    # This function has only a single output, so it gets only one gradient
+    @staticmethod
+    def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
+        x, res = ctx.saved_tensors
+        grad = None
+        if ctx.needs_input_grad[0]:
+            grad = module.eff_pdist_backward(grad_output, x, res)
+
+        return grad
+
+
+class PdistFunction_optmem(Function):
+    @staticmethod
+    def forward(ctx, x: torch.Tensor) -> torch.Tensor:
+        res = module.eff_pdist_forward(x)
+        ctx.save_for_backward(x)
+        return res
+
+    # This function has only a single output, so it gets only one gradient
+    @staticmethod
+    def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
+        x, = ctx.saved_tensors
+        grad = None
+        if ctx.needs_input_grad[0]:
+            grad = module.eff_pdist_mem_backward(grad_output, x)
+
+        return grad
+
+
 class CdistSquareFunction(Function):
     @staticmethod
     def forward(ctx, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
@@ -124,6 +160,36 @@ def cdist(x1: torch.Tensor, x2: torch.Tensor, *, opt: str = 'compute') -> torch.
         return CdistFunction_optcompute.apply(x1, x2)
     elif opt == 'mem':
         return CdistFunction_optmem.apply(x1, x2)
+
+
+def pdist(x: torch.Tensor, *, opt: str = 'compute') -> torch.Tensor:
+    r"""Computes batched the p-norm distance between each pair of the two collections of row vectors.
+
+    Args:
+        x (Tensor): input tensor of shape :math:`B \times P \times M`.
+        opt (str)  : focus optimization parameter. Either focus on `mem` for
+                     for memory or `compute` for flops
+
+    If x has shape :math:`B \times P \times M` then the
+    output will have shape :math:`B \times P \times P`.
+
+    Example:
+
+        >>> a = torch.tensor([[[0.9041,  0.0196], [-0.3108, -2.4423], [-0.4821,  1.059]]])
+        >>> a
+        tensor([[[ 0.9041,  0.0196],
+                 [-0.3108, -2.4423],
+                 [-0.4821,  1.0590]]])
+        >>> torch_dist.euclidean.pdist(a)
+        tensor([[[0.0000, 2.7453, 1.7326],
+                 [2.7453, 0.0000, 3.5055],
+                 [1.7326, 3.5055, 0.0000]]])
+    """
+    if opt == 'compute':
+        return PdistFunction_optcompute.apply(x)
+    elif opt == 'mem':
+        return PdistFunction_optmem.apply(x)
+
 
 def cdist_square(x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
     r"""Computes batched the squared 2-norm distance between each pair of the two collections of row vectors.
