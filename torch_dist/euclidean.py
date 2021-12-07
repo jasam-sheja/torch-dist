@@ -128,6 +128,23 @@ class CdistSquareFunction(Function):
         return grad_x1, grad_x2
 
 
+class PdistSquareFunction(Function):
+    @staticmethod
+    def forward(ctx, x: torch.Tensor) -> torch.Tensor:
+        res = module.eff_pdistsquare_forward(x)
+        ctx.save_for_backward(x)
+        return res
+
+    # This function has only a single output, so it gets only one gradient
+    @staticmethod
+    def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
+        x, = ctx.saved_tensors
+        grad = None
+        if ctx.needs_input_grad[0]:
+            grad = module.eff_pdistsquare_backward(grad_output, x)
+        return grad
+
+
 def cdist(x1: torch.Tensor, x2: torch.Tensor, *, opt: str = 'compute') -> torch.Tensor:
     r"""Computes batched the p-norm distance between each pair of the two collections of row vectors.
 
@@ -218,3 +235,27 @@ def cdist_square(x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
                 [2.2830, 0.3791]])
     """
     return CdistSquareFunction.apply(x1, x2)
+
+def pdist_square(x: torch.Tensor) -> torch.Tensor:
+    r"""Computes batched the squared 2-norm distance between each pair of the two collections of row vectors.
+
+    Args:
+        x1 (Tensor): input tensor of shape :math:`B \times P \times M`.
+        x2 (Tensor): input tensor of shape :math:`B \times R \times M`.
+
+    If x1 has shape :math:`B \times P \times M` and x2 has shape :math:`B \times R \times M` then the
+    output will have shape :math:`B \times P \times R`.
+
+    Example:
+
+        >>> a = torch.tensor([[[0.9041,  0.0196], [-0.3108, -2.4423], [-0.4821,  1.059]]])
+        >>> a
+        tensor([[[ 0.9041,  0.0196],
+                 [-0.3108, -2.4423],
+                 [-0.4821,  1.0590]]])
+        >>> torch_dist.euclidean.pdist_square(a)
+        tensor([[[ 0.0000,  7.5369,  3.0019],
+                 [ 7.5369,  0.0000, 12.2884],
+                 [ 3.0019, 12.2884,  0.0000]]])
+    """
+    return PdistSquareFunction.apply(x)

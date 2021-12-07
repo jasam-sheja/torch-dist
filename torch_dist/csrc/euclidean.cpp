@@ -209,6 +209,24 @@ at::Tensor eff_cdistsquare_x2_backward(const at::Tensor &grad, const at::Tensor 
     return x2.mul(grad.sum(-2, false).unsqueeze(-1)).baddbmm_(grad.transpose(-2, -1), x1, 1, -1).mul_(2);
 }
 
+/////////////////////////////////////////////
+/////////        pdistsquare        /////////
+/////////////////////////////////////////////
+at::Tensor eff_pdistsquare_forward(const at::Tensor &x)
+{
+    at::Tensor x_norm = x.pow(2).sum(-1, true);
+    at::Tensor sq_dist = x_norm.add(x_norm.transpose(-2, -1)).baddbmm_(x, x.transpose(-2, -1), 1, -2);
+    return at::relu_(sq_dist);
+}
+
+at::Tensor eff_pdistsquare_backward(const at::Tensor &grad, const at::Tensor &x)
+{
+    if (!grad.defined())
+    {
+        return at::Tensor();
+    }
+    return x.mul(grad.sum(-1, true)).baddbmm_(grad, x, 1, -1).mul_(4);
+}
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
@@ -236,6 +254,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
     euclidean.def("eff_cdistsquare_backward", &eff_cdistsquare_backward, "doc");
     euclidean.def("eff_cdistsquare_x1_backward", &eff_cdistsquare_x1_backward, "doc");
     euclidean.def("eff_cdistsquare_x2_backward", &eff_cdistsquare_x2_backward, "doc");
+    
+    euclidean.def("eff_pdistsquare_forward", &eff_pdistsquare_forward, "doc");
+    euclidean.def("eff_pdistsquare_backward", &eff_pdistsquare_backward, "doc");
 }
 
 #endif
