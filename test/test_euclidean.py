@@ -4,7 +4,7 @@ import torch_dist
 import pytest
 
 
-class PTestCDist:
+class TestCDist:
     @pytest.mark.parametrize(
         "device", ['cpu'] + (['cuda'] if torch.cuda.is_available() else []),
     )
@@ -68,7 +68,7 @@ class PTestCDist:
             optcompute, (a, b), raise_exception=False)
 
 
-class PTestPDist:
+class TestPDist:
     @pytest.mark.parametrize(
         "device", ['cpu'] + (['cuda'] if torch.cuda.is_available() else []),
     )
@@ -162,7 +162,7 @@ class PTestPDist:
         assert torch.allclose(ggt, gopt)
 
 
-class PTestCDistSquare:
+class TestCDistSquare:
     @pytest.mark.parametrize(
         "device", ['cpu'] + (['cuda'] if torch.cuda.is_available() else []),
     )
