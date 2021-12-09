@@ -32,7 +32,7 @@ at::Tensor eff_cdist_forward(const at::Tensor &x1, const at::Tensor &x2)
                              x2.transpose(-2, -1),
                              1, -2)
                              .add_(x1_norm);
-    return at::relu_(sq_dist).sqrt();
+    return at::relu_(sq_dist).sqrt_();
 }
 
 std::tuple<at::Tensor, at::Tensor> eff_cdist_backward(const at::Tensor &grad, const at::Tensor &x1, const at::Tensor &x2, const at::Tensor &res)
@@ -84,7 +84,7 @@ at::Tensor eff2_cdist_forward(const at::Tensor &x1, const at::Tensor &x2)
     at::Tensor x1_norm = x1.pow(2).sum(-1, true);
     at::Tensor x2_norm = x2.pow(2).sum(-1, true);
     at::Tensor sq_dist = x1_norm.add(x2_norm.transpose(-2, -1)).baddbmm_(x1, x2.transpose(-2, -1), 1, -2);
-    return at::relu_(sq_dist).sqrt();
+    return at::relu_(sq_dist).sqrt_();
 }
 
 std::tuple<at::Tensor, at::Tensor> eff_cdist_mem_backward(const at::Tensor &grad, const at::Tensor &x1, const at::Tensor &x2)
@@ -137,7 +137,7 @@ at::Tensor eff_pdist_forward(const at::Tensor &x1)
 {
     at::Tensor x1_norm = x1.pow(2).sum(-1, true);
     at::Tensor sq_dist = x1_norm.add(x1_norm.transpose(-2, -1)).baddbmm_(x1, x1.transpose(-2, -1), 1, -2);
-    return at::relu_(sq_dist).sqrt();
+    return at::relu_(sq_dist).sqrt_();
 }
 at::Tensor eff_pdist_backward(const at::Tensor &grad, const at::Tensor &x, const at::Tensor &res)
 {
